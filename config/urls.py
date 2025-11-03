@@ -6,10 +6,11 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/core/', include('apps.core.urls')),
-    path('api/crm/', include('apps.crm.urls')),
-    path('api/commerce/', include('apps.commerce.urls')),
-    path('api/operations/', include('apps.operations.urls')),
-    path('api/finance/', include('apps.finance.urls')),
-    path('api/analytics/', include('apps.analytics.urls')),
+    #path('api/core/', include('apps.core.urls')),
+    #path('api/crm/', include('apps.crm.urls')),
+    #path('api/commerce/', include('apps.commerce.urls')),
+    #path('api/operations/', include('apps.operations.urls')),
+    #path('api/finance/', include('apps.finance.urls')),
+    #path('api/analytics/', include('apps.analytics.urls')),
+    path('', include('apps.crm.clientes.urls')),  # Updated path to clientes URLs
 ]
