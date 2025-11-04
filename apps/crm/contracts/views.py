@@ -1,45 +1,31 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Contract
 from .serializers import ContractSerializer
-from .services import ContractPDFService
+from .services import ContractPDFService, PDFNotImplemented
 
 
 class ContractViewSet(viewsets.ModelViewSet):
     queryset = Contract.objects.all()
     serializer_class = ContractSerializer
-    pagination_class = None
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_authenticated and hasattr(user, "tenant") and user.tenant:
-            return self.queryset.filter(tenant=user.tenant)
-        elif user.is_superuser:
-            return self.queryset.all()
-        return Contract.objects.none()
+        if getattr(user, 'is_superuser', False):
+            return Contract.objects.all()
+        return Contract.objects.filter(tenant=user.tenant)
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.is_authenticated and hasattr(user, "tenant") and user.tenant:
-            serializer.save(tenant=user.tenant)
-        else:
-            # Por ahora, no se guarda si no hay un tenant claro
-            pass
+        serializer.save(tenant=self.request.user.tenant)
 
-    @action(detail=True, methods=["get"], url_path="download")
+    @action(detail=True, methods=['post'], url_path='download')
     def download(self, request, pk=None):
         contract = self.get_object()
         try:
-            service = ContractPDFService(contract.tenant, request.user)
-            filename = service.generate_contract(contract)
-        except RuntimeError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_501_NOT_IMPLEMENTED)
-        # Responder con información del archivo generado
-        return Response(
-            {
-                "filename": filename,
-                "document": contract.document.url if contract.document else None,
-            }
-        )
+            ContractPDFService.generate(contract)
+        except PDFNotImplemented:
+            return Response({'detail': 'PDF no disponible (dependencia no instalada)'}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        return Response({'detail': 'PDF generado', 'document': contract.document.url if contract.document else None})

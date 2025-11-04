@@ -1,45 +1,48 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>Contrato {{ contract.id }}</title>
+<head>
+    <meta charset="UTF-8">
+    <title>Contrato - {{ contract.title }}</title>
     <style>
-      body { font-family: Arial, sans-serif; font-size: 12px; }
-      h1 { font-size: 18px; margin-bottom: 4px; }
-      .meta { margin-bottom: 12px; }
-      .section { margin-top: 8px; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #ddd; padding: 6px; }
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        .section { margin: 12px 0; }
+        .label { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { border: 1px solid #ddd; padding: 6px; }
     </style>
-  </head>
-  <body>
+    </head>
+<body>
     <h1>Contrato: {{ contract.title }}</h1>
-    <div class="meta">
-      <strong>Tenant:</strong> {{ tenant.name }} ({{ tenant.slug }})<br />
-      <strong>Tipo:</strong> {{ contract.contract_type }}<br />
-      <strong>Estado:</strong> {{ contract.status }}<br />
-      <strong>Inicio:</strong> {{ contract.start_date }}
-      {% if contract.end_date %}
-      &nbsp;|&nbsp; <strong>Fin:</strong> {{ contract.end_date }}
-      {% endif %}
-      <br />
-      <strong>Monto:</strong> {{ contract.amount }}
-    </div>
-
     <div class="section">
-      <strong>Cliente:</strong>
-      {% if contract.client %}
-        {{ contract.client.nombre_completo }}
-      {% else %}
-        {{ contract.client_name|default:"N/D" }}
-      {% endif %}
+        <div><span class="label">Cliente:</span> {{ contract.client_name|default:contract.client }}</div>
+        <div><span class="label">Tipo:</span> {{ contract.get_contract_type_display }}</div>
+        <div><span class="label">Estado:</span> {{ contract.get_status_display }}</div>
+        <div><span class="label">Monto:</span> S/ {{ contract.amount }}</div>
+        <div><span class="label">Fecha Inicio:</span> {{ contract.start_date }}</div>
+        {% if contract.end_date %}
+        <div><span class="label">Fecha Fin:</span> {{ contract.end_date }}</div>
+        {% endif %}
     </div>
 
     {% if contract.details %}
     <div class="section">
-      <strong>Detalles:</strong>
-      <p>{{ contract.details }}</p>
+        <div class="label">Detalles:</div>
+        <p>{{ contract.details }}</p>
     </div>
     {% endif %}
-  </body>
+
+    <div class="section">
+        <table>
+            <tr>
+                <th>Referencia Externa</th>
+                <td>{{ contract.external_ref }}</td>
+            </tr>
+            <tr>
+                <th>Tenant</th>
+                <td>{{ contract.tenant.business_name }}</td>
+            </tr>
+        </table>
+    </div>
+</body>
 </html>

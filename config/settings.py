@@ -36,7 +36,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     'apps.core',
-    'apps.crm',
+    'apps.crm',  # paquete contenedor
     'apps.crm.clientes',
     'apps.crm.contracts',
     'apps.commerce', 

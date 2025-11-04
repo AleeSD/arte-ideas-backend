@@ -2,6 +2,7 @@ from rest_framework import viewsets
 from .models import Cliente
 from .serializers import ClienteSerializer
 
+
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
@@ -11,9 +12,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_authenticated and hasattr(user, 'tenant') and user.tenant:
             return self.queryset.filter(tenant=user.tenant)
-        elif user.is_superuser:
+        elif getattr(user, 'is_superuser', False):
             return self.queryset.all()
-        return Cliente.objects.none() 
+        return Cliente.objects.none()
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -21,6 +22,5 @@ class ClienteViewSet(viewsets.ModelViewSet):
             serializer.save(tenant=user.tenant)
         else:
             # Manejar caso de superuser o asignar un tenant por defecto si es necesario
-            # Esto dependerá de las reglas de negocio.
             # Por ahora, no se guarda si no hay un tenant claro.
             pass

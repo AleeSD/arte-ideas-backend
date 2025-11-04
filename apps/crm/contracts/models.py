@@ -27,7 +27,6 @@ class Contract(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.PROTECT, db_index=True, related_name="crm_contracts"
     )
-    # Integración con CRM si está instalado: FK opcional a crm.clientes.Cliente
     client = models.ForeignKey(
         "clientes.Cliente",
         on_delete=models.PROTECT,
@@ -35,7 +34,6 @@ class Contract(models.Model):
         blank=True,
         related_name="crm_contracts",
     )
-    # Snapshot defensivo si CRM no está activo o no se desea vincular
     client_name = models.CharField(max_length=120, blank=True)
 
     title = models.CharField(max_length=160)
@@ -64,7 +62,6 @@ class Contract(models.Model):
             errors["end_date"] = "La fecha de fin no puede ser menor que la de inicio"
         if self.amount is None or self.amount < 0:
             errors["amount"] = "El monto debe ser 0 o mayor"
-        # Requiere al menos una referencia de cliente
         if not self.client and not self.client_name:
             errors["client"] = "Debe especificarse un cliente (FK) o client_name"
         if errors:

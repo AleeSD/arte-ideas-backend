@@ -7,7 +7,6 @@ class ContractsConfig(AppConfig):
     verbose_name = "Contratos (CRM)"
 
     def ready(self):
-        # Importar señales si es necesario
         try:
             from . import signals  # noqa: F401
         except Exception:

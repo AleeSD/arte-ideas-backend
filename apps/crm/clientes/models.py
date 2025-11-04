@@ -2,13 +2,16 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from apps.core.models import Tenant
 
+
 def validar_ruc(value):
     if value and not value.isdigit() or (value and len(value) != 11):
         raise ValidationError('El RUC debe tener 11 dígitos numéricos')
 
+
 def validar_dni(value):
     if value and not value.isdigit() or (value and len(value) != 8):
         raise ValidationError('El DNI debe tener 8 dígitos numéricos')
+
 
 class Cliente(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
@@ -21,8 +24,8 @@ class Cliente(models.Model):
     nombre_completo = models.CharField(max_length=150)
     tipo_cliente = models.CharField(max_length=20, choices=TIPO_CLIENTE_CHOICES, default='particular')
     dni = models.CharField(
-        max_length=15, 
-        blank=True, 
+        max_length=15,
+        blank=True,
         null=True,
         validators=[validar_dni],
         help_text='Requerido para clientes particulares (8 dígitos)'
@@ -69,17 +72,17 @@ class Cliente(models.Model):
                 raise ValidationError({'ruc': 'El RUC es obligatorio para empresas y colegios'})
             self.dni = None  # Limpiar DNI si es empresa o colegio
 
-        # Validación de unicidad para DNI (solo si no es nulo o vacío)
+        # Validación de unicidad para DNI por tenant (solo si no es nulo o vacío)
         if self.dni and self.dni.strip():
-            qs = Cliente.objects.filter(dni=self.dni)
+            qs = Cliente.objects.filter(tenant=self.tenant, dni=self.dni)
             if self.pk:  # Si el objeto ya existe, lo excluimos de la consulta
                 qs = qs.exclude(pk=self.pk)
             if qs.exists():
                 raise ValidationError({'dni': 'Ya existe un cliente registrado con este DNI.'})
-                
-        # Validación de unicidad para RUC (solo si no es nulo o vacío)
+
+        # Validación de unicidad para RUC por tenant (solo si no es nulo o vacío)
         if self.ruc and self.ruc.strip():
-            qs = Cliente.objects.filter(ruc=self.ruc)
+            qs = Cliente.objects.filter(tenant=self.tenant, ruc=self.ruc)
             if self.pk:  # Si el objeto ya existe, lo excluimos de la consulta
                 qs = qs.exclude(pk=self.pk)
             if qs.exists():

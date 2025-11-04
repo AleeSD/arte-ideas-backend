@@ -5,28 +5,34 @@ from apps.crm.clientes.models import Cliente
 
 
 class ContractSerializer(serializers.ModelSerializer):
-    tenant = serializers.PrimaryKeyRelatedField(read_only=True)
-    client = serializers.PrimaryKeyRelatedField(required=False, allow_null=True, queryset=Cliente.objects.all())
+    client = serializers.PrimaryKeyRelatedField(
+        queryset=Cliente.objects.all(), required=False, allow_null=True
+    )
 
     class Meta:
         model = Contract
-        fields = "__all__"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        fields = (
+            'id', 'tenant', 'client', 'client_name', 'title', 'contract_type',
+            'status', 'amount', 'start_date', 'end_date', 'details',
+            'document', 'external_ref'
+        )
+        read_only_fields = ('tenant', 'document')
 
     def validate(self, attrs):
-        # Validaciones adicionales simples
-        start_date = attrs.get("start_date")
-        end_date = attrs.get("end_date")
-        amount = attrs.get("amount")
-        client = attrs.get("client")
-        client_name = attrs.get("client_name")
+        start_date = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end_date = attrs.get('end_date', getattr(self.instance, 'end_date', None))
+        amount = attrs.get('amount', getattr(self.instance, 'amount', None))
+        client = attrs.get('client', getattr(self.instance, 'client', None))
+        client_name = attrs.get('client_name', getattr(self.instance, 'client_name', None))
 
+        errors = {}
         if end_date and start_date and end_date < start_date:
-            raise serializers.ValidationError({"end_date": "La fecha de fin no puede ser menor que la de inicio"})
+            errors['end_date'] = 'La fecha de fin no puede ser menor que la de inicio'
         if amount is None or amount < 0:
-            raise serializers.ValidationError({"amount": "El monto debe ser 0 o mayor"})
+            errors['amount'] = 'El monto debe ser 0 o mayor'
         if not client and not client_name:
-            raise serializers.ValidationError({"client": "Debe especificarse un cliente (FK) o client_name"})
+            errors['client'] = 'Debe especificarse un cliente (FK) o client_name'
+
+        if errors:
+            raise serializers.ValidationError(errors)
         return attrs

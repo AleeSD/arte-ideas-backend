@@ -1,3 +1,1 @@
-"""
-Módulo de Contratos (CRM)
-"""
+default_app_config = 'apps.crm.contracts.apps.ContractsConfig'

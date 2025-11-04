@@ -1,10 +1,12 @@
 from rest_framework import serializers
 from .models import Cliente
 
+
 class ClienteSerializer(serializers.ModelSerializer):
     dni = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     ruc = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     tenant = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = Cliente
         fields = '__all__'
