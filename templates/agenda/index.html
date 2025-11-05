@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agenda - Arte Ideas</title>
+    <style>
+      :root { --bg:#0b1320; --card:#111a2b; --text:#e6f0ff; --muted:#a8b6d9; --accent:#3cc4a7; --line:#1b2740; }
+      body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
+      header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--line); }
+      .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      select, input, button { background:var(--card); color:var(--text); border:1px solid var(--line); padding:8px 10px; border-radius:8px; }
+      button { cursor:pointer; }
+      main { padding:16px 24px; }
+      .grid { width:100%; border-collapse:collapse; }
+      .grid th { color:var(--muted); font-weight:600; padding:8px; text-align:center; }
+      .grid td { vertical-align:top; border:1px solid var(--line); width:14.285%; height:120px; padding:6px; }
+      .day-header { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
+      .pill { display:block; font-size:12px; padding:4px 6px; border-radius:6px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .pill.entrega { background:#153f34; color:#9be9d8; border:1px solid #215e4d; }
+      .pill.foto { background:#142f57; color:#a7c5ff; border:1px solid #1d4688; }
+      .pill.recordatorio { background:#3a2a12; color:#ffd59f; border:1px solid #59401a; }
+      .muted { color:var(--muted); }
+      .section { margin-top:24px; }
+      .cards { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap:12px; }
+      .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+      .small { font-size:12px; color:var(--muted); }
+      /* Modal nuevo evento */
+      .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; }
+      .modal { width:480px; max-width:90vw; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+      .modal h3 { margin:0 0 12px 0; font-size:16px; }
+      .modal .row { display:flex; gap:8px; margin-bottom:8px; }
+      .modal label { flex:1; display:flex; flex-direction:column; gap:6px; }
+      .modal .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1 style="margin:0;font-size:18px;">Agenda</h1>
+        <div class="small">Gestiona tus sesiones y eventos</div>
+      </div>
+      <div class="controls">
+        <div id="tabs" class="controls" style="gap:4px;">
+          <button data-view="day">Día</button>
+          <button data-view="week">Semana</button>
+          <button data-view="month" class="active">Mes</button>
+        </div>
+        <label>Año
+          <select id="year"></select>
+        </label>
+        <label>Mes
+          <select id="month"></select>
+        </label>
+        <label>Día
+          <select id="day"></select>
+        </label>
+        <button id="prev">◀</button>
+        <button id="next">▶</button>
+        <select id="filter">
+          <option value="all">Todos</option>
+          <option value="Entrega">Entrega</option>
+          <option value="Sesión Fotográfica">Sesión Fotográfica</option>
+          <option value="Recordatorio">Recordatorio</option>
+        </select>
+        <button id="load">Cargar</button>
+        <button id="new-event-btn" style="background:#2970ff;border-color:#2970ff;">+ Nuevo Evento</button>
+      </div>
+    </header>
+    <main>
+      <section>
+        <div id="month-title" class="small" style="margin-bottom:8px;"></div>
+        <div id="calendar-section"></div>
+      </section>
+      <section class="section">
+        <h2 style="font-size:16px;margin:0 0 8px 0;">Próximos Eventos</h2>
+        <div id="upcoming" class="cards"></div>
+      </section>
+    </main>
+
+    <!-- Modal Nuevo Evento -->
+    <div id="new-event-modal" class="modal-backdrop">
+      <div class="modal">
+        <h3>Nuevo Evento</h3>
+        <div class="row">
+          <label>Título
+            <input type="text" id="ne_title" placeholder="Nombre del evento"/>
+          </label>
+        </div>
+        <div class="row">
+          <label>Año
+            <select id="ne_year"></select>
+          </label>
+          <label>Mes
+            <select id="ne_month"></select>
+          </label>
+          <label>Día
+            <select id="ne_day"></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Hora
+            <input type="time" id="ne_time"/>
+          </label>
+          <label>Tipo
+            <select id="ne_type">
+              <option value="Entrega">Entrega</option>
+              <option value="Sesión Fotográfica">Sesión Fotográfica</option>
+              <option value="Recordatorio">Recordatorio</option>
+            </select>
+          </label>
+        </div>
+        <div id="ne_error" class="small" style="color:#ffadad;display:none;"></div>
+        <div class="actions">
+          <button id="ne_cancel">Cancelar</button>
+          <button id="ne_save" style="background:#2970ff;border-color:#2970ff;">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const apiBase = '/api/crm/agenda';
+      let currentView = 'month';
+      const DEFAULT_YEAR = {{ default_year }};
+      const DEFAULT_MONTH = {{ default_month }};
+      const DEFAULT_DAY = {{ default_day }};
+
+      // Utilidades para selects
+      function daysInMonth(y, m){
+        return new Date(y, m, 0).getDate(); // m es 1..12
+      }
+      function fillYearSelect(sel, baseYear){
+        const start = baseYear - 10;
+        const end = baseYear + 10;
+        sel.innerHTML = '';
+        for(let y=start; y<=end; y++){
+          const opt = document.createElement('option');
+          opt.value = y; opt.textContent = y;
+          sel.appendChild(opt);
+        }
+        sel.value = String(baseYear);
+      }
+      function fillMonthSelect(sel, baseMonth){
+        sel.innerHTML = '';
+        for(let m=1; m<=12; m++){
+          const opt = document.createElement('option');
+          opt.value = m; opt.textContent = m;
+          sel.appendChild(opt);
+        }
+        sel.value = String(baseMonth);
+      }
+      function fillDaySelect(sel, year, month, baseDay){
+        const max = daysInMonth(year, month);
+        sel.innerHTML = '';
+        for(let d=1; d<=max; d++){
+          const opt = document.createElement('option');
+          opt.value = d; opt.textContent = d;
+          sel.appendChild(opt);
+        }
+        sel.value = String(Math.min(baseDay, max));
+      }
+
+      // Helpers modal
+      function showModal(){ document.getElementById('new-event-modal').style.display = 'flex'; }
+      function hideModal(){ document.getElementById('new-event-modal').style.display = 'none'; }
+      function initModalSelectors(){
+        const ySel = document.getElementById('ne_year');
+        const mSel = document.getElementById('ne_month');
+        const dSel = document.getElementById('ne_day');
+        // Por defecto, usar los valores actuales de la cabecera
+        const curY = parseInt(document.getElementById('year').value,10) || DEFAULT_YEAR;
+        const curM = parseInt(document.getElementById('month').value,10) || DEFAULT_MONTH;
+        const curD = parseInt(document.getElementById('day').value,10) || DEFAULT_DAY;
+        fillYearSelect(ySel, curY);
+        fillMonthSelect(mSel, curM);
+        fillDaySelect(dSel, curY, curM, curD);
+        ySel.addEventListener('change', ()=> fillDaySelect(dSel, parseInt(ySel.value,10), parseInt(mSel.value,10), parseInt(dSel.value,10)) );
+        mSel.addEventListener('change', ()=> fillDaySelect(dSel, parseInt(ySel.value,10), parseInt(mSel.value,10), parseInt(dSel.value,10)) );
+        document.getElementById('ne_time').value = '10:00';
+        document.getElementById('ne_type').value = 'Sesión Fotográfica';
+        document.getElementById('ne_title').value = '';
+        document.getElementById('ne_error').style.display = 'none';
+      }
+
+      function tipoClass(tipo){
+        const t = (tipo||'').toLowerCase();
+        if(t.includes('entrega')) return 'entrega';
+        if(t.includes('sesión')) return 'foto';
+        if(t.includes('recordatorio')) return 'recordatorio';
+        return 'foto';
+      }
+
+      async function loadUpcoming(){
+        const res = await fetch(`${apiBase}/upcoming?limit=12`);
+        const data = await res.json();
+        const cont = document.getElementById('upcoming');
+        cont.innerHTML = '';
+        data.forEach(e => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `<div style="font-weight:600;">${e.titulo}</div>
+            <div class="small">${e.fecha} · ${e.hora}</div>
+            <div class="pill ${tipoClass(e.tipo)}">${e.tipo}</div>`;
+          cont.appendChild(div);
+        });
+      }
+
+      function renderMonth(data){
+        const daysHeader = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        let html = '<table class="grid"><thead><tr>' + daysHeader.map(d=>`<th>${d}</th>`).join('') + '</tr></thead><tbody>';
+        data.weeks.forEach(week => {
+          html += '<tr>';
+          week.days.forEach(day => {
+            const muted = day.in_month ? '' : 'muted';
+            let pills = '';
+            day.events.forEach(ev => {
+              pills += `<span class="pill ${tipoClass(ev.tipo)}">${ev.titulo} · ${ev.hora}</span>`;
+            });
+            const dnum = day.date.split('-')[2];
+            html += `<td><div class="day-header ${muted}"><span>${dnum}</span></div>${pills}</td>`;
+          });
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('calendar-section').innerHTML = html;
+        const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        const titulo = `${meses[data.month-1]} de ${data.year}`;
+        document.getElementById('month-title').textContent = titulo.charAt(0).toUpperCase() + titulo.slice(1);
+      }
+
+      function renderWeek(data){
+        let html = '<div class="cards">';
+        data.days.forEach(day => {
+          let pills = '';
+          day.events.forEach(ev => { pills += `<span class="pill ${tipoClass(ev.tipo)}">${ev.titulo} · ${ev.hora}</span>`; });
+          html += `<div class="card"><div style="font-weight:600;">${day.date}</div>${pills || '<div class="small">Sin eventos</div>'}</div>`;
+        });
+        html += '</div>';
+        document.getElementById('calendar-section').innerHTML = html;
+      }
+
+      function renderDay(data){
+        let html = `<div class="card"><div style="font-weight:600;">${data.date}</div>`;
+        if((data.events||[]).length){
+          data.events.forEach(ev => { html += `<div class="pill ${tipoClass(ev.tipo)}">${ev.titulo} · ${ev.hora}</div>`; });
+        } else {
+          html += '<div class="small">Sin eventos</div>';
+        }
+        html += '</div>';
+        document.getElementById('calendar-section').innerHTML = html;
+      }
+
+      async function loadCalendar(){
+        const view = currentView;
+        const year = document.getElementById('year').value;
+        const month = document.getElementById('month').value;
+        const day = document.getElementById('day').value;
+        const params = new URLSearchParams({ view, year, month });
+        if(view !== 'month') params.append('day', day);
+        const res = await fetch(`${apiBase}/calendar?${params.toString()}`);
+        const data = await res.json();
+        const f = document.getElementById('filter').value;
+        // si hay filtro, aplicarlo a los eventos antes de renderizar
+        function applyFilterToDays(days){
+          return days.map(d => ({...d, events: d.events.filter(ev => f==='all' || ev.tipo===f)}));
+        }
+        if(view === 'month') {
+          data.weeks = data.weeks.map(w => ({...w, days: applyFilterToDays(w.days)}));
+          renderMonth(data);
+        }
+        else if(view === 'week') renderWeek(data);
+        else renderDay(data);
+      }
+
+      document.getElementById('load').addEventListener('click', async ()=>{
+        await loadCalendar();
+        await loadUpcoming();
+      });
+
+      document.getElementById('filter').addEventListener('change', async ()=>{
+        await loadCalendar();
+      });
+
+      // navegación de mes (afecta month, week y day según corresponda)
+      document.getElementById('prev').addEventListener('click', async ()=>{
+        const ySel = document.getElementById('year');
+        const mSel = document.getElementById('month');
+        const dSel = document.getElementById('day');
+        let y = parseInt(ySel.value, 10);
+        let m = parseInt(mSel.value, 10);
+        m -= 1; if(m < 1){ m = 12; y -= 1; }
+        ySel.value = String(y);
+        mSel.value = String(m);
+        fillDaySelect(dSel, y, m, parseInt(dSel.value, 10));
+        await loadCalendar();
+      });
+      document.getElementById('next').addEventListener('click', async ()=>{
+        const ySel = document.getElementById('year');
+        const mSel = document.getElementById('month');
+        const dSel = document.getElementById('day');
+        let y = parseInt(ySel.value, 10);
+        let m = parseInt(mSel.value, 10);
+        m += 1; if(m > 12){ m = 1; y += 1; }
+        ySel.value = String(y);
+        mSel.value = String(m);
+        fillDaySelect(dSel, y, m, parseInt(dSel.value, 10));
+        await loadCalendar();
+      });
+
+      // tabs de vista
+      document.querySelectorAll('#tabs button').forEach(b => {
+        b.addEventListener('click', async () => {
+          document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('active'));
+          b.classList.add('active');
+          currentView = b.dataset.view;
+          await loadCalendar();
+        });
+      });
+
+      // Nuevo Evento: abrir modal y guardar
+      document.getElementById('new-event-btn').addEventListener('click', ()=>{ initModalSelectors(); showModal(); });
+      document.getElementById('ne_cancel').addEventListener('click', hideModal);
+      document.getElementById('new-event-modal').addEventListener('click', (e)=>{ if(e.target.id==='new-event-modal') hideModal(); });
+      document.getElementById('ne_save').addEventListener('click', async ()=>{
+        const titulo = (document.getElementById('ne_title').value||'').trim();
+        const y = document.getElementById('ne_year').value;
+        const m = document.getElementById('ne_month').value;
+        const d = document.getElementById('ne_day').value;
+        const fecha = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const hora = document.getElementById('ne_time').value;
+        const tipo = document.getElementById('ne_type').value;
+        const err = document.getElementById('ne_error');
+        if(!titulo){ err.textContent = 'El título es requerido'; err.style.display='block'; return; }
+        if(!hora){ err.textContent = 'La hora es requerida'; err.style.display='block'; return; }
+        err.style.display='none';
+        try{
+          const res = await fetch(`${apiBase}/events/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ titulo, fecha, hora, tipo })
+          });
+          if(!res.ok){
+            const msg = await res.json().catch(()=>({detail:'Error al crear'}));
+            throw new Error(msg.detail||'Error al crear');
+          }
+          hideModal();
+          // Refrescar UI
+          await loadCalendar();
+          await loadUpcoming();
+        }catch(e){ err.textContent = e.message; err.style.display='block'; }
+      });
+
+      // Inicializar selects y suscripciones
+      function initSelectors(){
+        const ySel = document.getElementById('year');
+        const mSel = document.getElementById('month');
+        const dSel = document.getElementById('day');
+        fillYearSelect(ySel, DEFAULT_YEAR);
+        fillMonthSelect(mSel, DEFAULT_MONTH);
+        fillDaySelect(dSel, DEFAULT_YEAR, DEFAULT_MONTH, DEFAULT_DAY);
+
+        ySel.addEventListener('change', ()=>{
+          fillDaySelect(dSel, parseInt(ySel.value,10), parseInt(mSel.value,10), parseInt(dSel.value,10));
+        });
+        mSel.addEventListener('change', ()=>{
+          fillDaySelect(dSel, parseInt(ySel.value,10), parseInt(mSel.value,10), parseInt(dSel.value,10));
+        });
+      }
+
+      // carga inicial
+      (async () => {
+        initSelectors();
+        await loadCalendar();
+        await loadUpcoming();
+      })();
+    </script>
+  </body>
+</html>
